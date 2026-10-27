@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+data/
+.venv/
+venv/
+.env
+
+# Trained model weights (regenerate with: python vae_mnist.py)
+vae_mnist.pt
+
+# Generated plots
+latent_space.png
+reconstructions.png

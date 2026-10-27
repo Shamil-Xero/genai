@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MNIST Reconstruction</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="kicker">Variational autoencoder</p>
+        <h1>Image reconstruction</h1>
+        <p class="lede">
+          Upload a handwritten digit of any size. It is resized to 28×28, then
+          a convolutional VAE reconstructs a sharper MNIST-style image.
+        </p>
+      </header>
+
+      <form id="upload-form">
+        <label class="dropzone" for="image-input">
+          <input id="image-input" type="file" name="image" accept="image/*" required />
+          <span id="drop-label">Choose an image, or drop one here</span>
+        </label>
+        <button type="submit">Reconstruct</button>
+      </form>
+
+      <p id="status" class="status" hidden></p>
+
+      <section id="results" class="results" hidden>
+        <figure>
+          <img id="original-img" alt="Uploaded original image" />
+          <figcaption>Original</figcaption>
+        </figure>
+        <figure>
+          <img id="recon-img" alt="Reconstructed image from the VAE" />
+          <figcaption>Reconstructed</figcaption>
+        </figure>
+        <p class="latent">Latent code <span id="latent"></span></p>
+      </section>
+    </main>
+
+    <script>
+      const form = document.getElementById("upload-form");
+      const input = document.getElementById("image-input");
+      const dropLabel = document.getElementById("drop-label");
+      const statusEl = document.getElementById("status");
+      const results = document.getElementById("results");
+
+      input.addEventListener("change", () => {
+        dropLabel.textContent = input.files[0]
+          ? input.files[0].name
+          : "Choose an image, or drop one here";
+      });
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!input.files[0]) {
+          showStatus("Please choose an image first.", true);
+          return;
+        }
+        await reconstructFile(input.files[0]);
+      });
+
+      async function reconstructFile(file) {
+        const data = new FormData();
+        data.append("image", file);
+
+        showStatus("Reconstructing…", false);
+        results.hidden = true;
+
+        try {
+          const response = await fetch("/reconstruct", {
+            method: "POST",
+            body: data,
+          });
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload.error || "Reconstruction failed.");
+          }
+
+          document.getElementById("original-img").src = URL.createObjectURL(file);
+          document.getElementById("recon-img").src = payload.reconstructed;
+          const shown = payload.latent.slice(0, 8).join(", ");
+          const extra = payload.latent.length > 8 ? ", …" : "";
+          document.getElementById("latent").textContent = `(${shown}${extra})`;
+          results.hidden = false;
+          showStatus("Done.", false);
+        } catch (error) {
+          showStatus(error.message, true);
+        }
+      }
+
+      function showStatus(message, isError) {
+        statusEl.hidden = false;
+        statusEl.textContent = message;
+        statusEl.classList.toggle("error", isError);
+      }
+    </script>
+  </body>
+</html>
